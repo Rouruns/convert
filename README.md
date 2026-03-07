@@ -65,7 +65,7 @@
 
 ##### Запуск:
 
-Код: python3 convert_multilang.py
+Код: python3 convert.py
 
 ###### Использование
 
@@ -177,7 +177,7 @@ Linux (Debian/Ubuntu)
 
 ###### Run:
 
-Cod: python3 convert_multilang.py
+Cod: python3 convert.py
 
 ###### Clone the repository:
 
