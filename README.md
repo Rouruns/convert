@@ -40,7 +40,7 @@
  | Opus
 
 
-#Требования
+######Требования
 
 - **Python 3.6+**
 - **PyGObject** (для GTK3)
@@ -92,7 +92,7 @@ GitHub: Rouruns
 
 En
 
-# Video/Audio Converter with Preview
+###### Video/Audio Converter with Preview
 
 Multilingual video/audio converter with preview, pause, and resume support.
 
@@ -170,13 +170,13 @@ sudo apt install python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 ffmpeg gstre
 
 python3 convert_multilang.py
 
-####### Clone the repository:
+###### Clone the repository:
 
 git clone https://github.com/Rouruns/convert.git
 cd video-converter
 
 
-######## Usage
+###### Usage
 
 Select an input file.
 Choose a conversion profile.
@@ -185,17 +185,17 @@ Click "Convert".
 Use "Pause" and "Resume" to control the process.
 For preview, click "Preview".
 
-######### Settings
+###### Settings
 
 Interface language: Change in the dropdown menu.
 Maximum threads: Adjust for faster conversion.
 Video trimming: Specify start and end (in seconds or MM:SS format).
 Export/import profiles: Save your settings for reuse.
 
-########## License
+###### License
 This project is licensed under the [Custom Free Non-Commercial License](LICENSE).
 
-########### Contact
+###### Contact
 
 Email: dierman77@macaw.me
 GitHub: Rouruns
