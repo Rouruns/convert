@@ -67,6 +67,14 @@
 
 Код: python3 convert.py
 
+## Screenshots
+
+### Русская версия
+![Русская версия](screenshots/screenshot_ru.png)
+
+### English Version
+![English Version](screenshots/screenshot_en.png)
+
 ###### Использование
 
 Выберите входной файл.
@@ -99,8 +107,6 @@ En
 ###### Video/Audio Converter with Preview
 
 Multilingual video/audio converter with preview, pause, and resume support.
-
-![Screenshot](screenshot.png)
 
 ---
 
