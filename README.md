@@ -172,7 +172,7 @@ python3 convert_multilang.py
 
 ####### Clone the repository:
 
-git clone https://github.com/Rouruns/video-converter.git
+git clone https://github.com/Rouruns/convert.git
 cd video-converter
 
 
