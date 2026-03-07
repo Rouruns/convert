@@ -56,12 +56,12 @@
 
 #### Linux (Debian/Ubuntu)
 
-   sudo apt update
-   sudo apt install python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 ffmpeg gstreamer1.0-plugins-good vlc
+Код:   sudo apt update
+Код 2: sudo apt install python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 ffmpeg gstreamer1.0-plugins-good vlc
 
 ##### Запуск:
 
-python3 convert_multilang.py
+Код: python3 convert_multilang.py
 
 ###### Использование
 
@@ -162,13 +162,13 @@ python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 ffmpeg gstreamer1.0-plugins-g
 ##### Installation
 Linux (Debian/Ubuntu)
 
-sudo apt update
-sudo apt install python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 ffmpeg gstreamer1.0-plugins-good vlc
+Cod: sudo apt update
+Cod 2: sudo apt install python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 ffmpeg gstreamer1.0-plugins-good vlc
 
 
 ###### Run:
 
-python3 convert_multilang.py
+Cod: python3 convert_multilang.py
 
 ###### Clone the repository:
 
