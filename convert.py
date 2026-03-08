@@ -1,26 +1,20 @@
 #!/usr/bin/env python3
-# convert_multilang.py
+# convert.py
 # GUI-утилита (GTK3) для конвертации видео/аудио с поддержкой RU/EN/DE/UK/BE,
 # предпросмотром и паузой/возобновлением конвертации.
 # Зависимости: python3, PyGObject (gtk3), ffmpeg, gstreamer (для предпросмотра).
 
 import os
-os.environ["GTK_THEME"] = "Mint-X"
-os.environ["GTK_ICON_THEME"] = "Mint-X"
-os.environ["XDG_DATA_DIRS"] = "/usr/share:/usr/local/share"
-import sys
 import json
 import shlex
 import threading
 import subprocess
-import shutil
 import time
 import signal
-
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gst", "1.0")
-from gi.repository import Gtk, GObject, GLib, Gdk, Gst
+from gi.repository import Gtk, GLib, Gdk, Gst
 
 LANGS = {
     "be": {
@@ -71,7 +65,26 @@ LANGS = {
         "trim_enable": "Абрэзаць, калі патрэбна",
         "trim_start": "Пачатак (MM:SS или сек):",
         "trim_end": "Канец (MM:SS или сек):",
-        "crf_label": "CRF (качество, 0-51):"
+        "crf_label": "CRF (качество, 0-51):",
+        "preset_mgr_add": "Дадаць профіль",
+        "preset_mgr_edit": "Рэдагаваць профіль",
+        "add": "Дадаць",
+        "edit": "Рэдагаваць",
+        "remove": "Выдаліць",
+        "name": "Назва",
+        "video_codec": "Відэакодэк",
+        "audio_codec": "Аўдыёкодэк",
+        "width": "Шырыня",
+        "height": "Вышыня",
+        "video_bitrate": "Бітрэйт відэа",
+        "audio_bitrate": "Бітрэйт аўдыё",
+        "pixel_format": "Фармат пікселяў",
+        "container": "Кантэйнер",
+        "preset": "Прэсет",
+        "quality_fast": "Хутка",
+        "quality_best_slow": "Лепшая якасць, паволі",
+        "cancel": "Адмена",
+        "ok": "Добра",
     },
     "de": {
         "title": "Konverter",
@@ -121,7 +134,26 @@ LANGS = {
         "trim_enable": "Trimmen, falls erforderlich",
         "trim_start": "Start (MM:SS oder sek):",
         "trim_end": "Ende (MM:SS oder sek):",
-        "crf_label": "CRF (Qualität, 0-51):"
+        "crf_label": "CRF (Qualität, 0-51):",
+        "preset_mgr_add": "Profil hinzufügen",
+        "preset_mgr_edit": "Profil bearbeiten",
+        "add": "Hinzufügen",
+        "edit": "Bearbeiten",
+        "remove": "Entfernen",
+        "name": "Name",
+        "video_codec": "Videocodec",
+        "audio_codec": "Audiocodec",
+        "width": "Breite",
+        "height": "Höhe",
+        "video_bitrate": "Video-Bitrate",
+        "audio_bitrate": "Audio-Bitrate",
+        "pixel_format": "Pixelformat",
+        "container": "Container",
+        "preset": "Voreinstellung",
+        "quality_fast": "Schnell",
+        "quality_best_slow": "Beste Qualität, langsam",
+        "cancel": "Abbrechen",
+        "ok": "OK",
     },
     "en": {
         "title": "Converter",
@@ -171,7 +203,26 @@ LANGS = {
         "trim_enable": "Trim if required",
         "trim_start": "Start (MM:SS or sec):",
         "trim_end": "End (MM:SS or sec):",
-        "crf_label": "CRF (quality, 0-51):"
+        "crf_label": "CRF (quality, 0-51):",
+        "preset_mgr_add": "Add Profile",
+        "preset_mgr_edit": "Edit Profile",
+        "add": "Add",
+        "edit": "Edit",
+        "remove": "Remove",
+        "name": "Name",
+        "video_codec": "Video Codec",
+        "audio_codec": "Audio Codec",
+        "width": "Width",
+        "height": "Height",
+        "video_bitrate": "Video Bitrate",
+        "audio_bitrate": "Audio Bitrate",
+        "pixel_format": "Pixel Format",
+        "container": "Container",
+        "preset": "Preset",
+        "quality_fast": "Fast",
+        "quality_best_slow": "Best Quality, Slow",
+        "cancel": "Cancel",
+        "ok": "OK",
     },
     "ru": {
         "title": "Конвертер",
@@ -221,7 +272,26 @@ LANGS = {
         "trim_enable": "Обрезать, если требуется",
         "trim_start": "Начало (MM:SS или сек):",
         "trim_end": "Конец (MM:SS или сек):",
-        "crf_label": "CRF (качество, 0-51):"
+        "crf_label": "CRF (качество, 0-51):",
+        "preset_mgr_add": "Добавить профиль",
+        "preset_mgr_edit": "Редактировать профиль",
+        "add": "Добавить",
+        "edit": "Редактировать",
+        "remove": "Удалить",
+        "name": "Название",
+        "video_codec": "Видеокодек",
+        "audio_codec": "Аудиокодек",
+        "width": "Ширина",
+        "height": "Высота",
+        "video_bitrate": "Битрейт видео",
+        "audio_bitrate": "Битрейт аудио",
+        "pixel_format": "Формат пикселей",
+        "container": "Контейнер",
+        "preset": "Пресет",
+        "quality_fast": "Быстро",
+        "quality_best_slow": "Лучшее качество, медленно",
+        "cancel": "Отмена",
+        "ok": "ОК",
     },
     "uk": {
         "title": "Конвертер",
@@ -271,174 +341,343 @@ LANGS = {
         "trim_enable": "Обрізати, якщо потрібно",
         "trim_start": "Початок (MM:SS або сек):",
         "trim_end": "Кінець (MM:SS або сек):",
-        "crf_label": "CRF (якість, 0-51):"
+        "crf_label": "CRF (якість, 0-51):",
+        "preset_mgr_add": "Додати профіль",
+        "preset_mgr_edit": "Редагувати профіль",
+        "add": "Додати",
+        "edit": "Редагувати",
+        "remove": "Видалити",
+        "name": "Назва",
+        "video_codec": "Відеокодек",
+        "audio_codec": "Аудіокодек",
+        "width": "Ширина",
+        "height": "Висота",
+        "video_bitrate": "Бітрейт відео",
+        "audio_bitrate": "Бітрейт аудіо",
+        "pixel_format": "Формат пікселів",
+        "container": "Контейнер",
+        "preset": "Пресет",
+        "quality_fast": "Швидко",
+        "quality_best_slow": "Найкраща якість, повільно",
+        "cancel": "Скасувати",
+        "ok": "Гаразд",
     }
 }
 
-EXTENDED_PROFILES = {
-    "3GP (176x144)": {"vcodec": "h263", "acodec": "aac", "width": 176, "height": 144, "video_bitrate": "128k", "audio_bitrate": "64k", "container": "3gp"},
-    "3GP (320x240)": {"vcodec": "h263", "acodec": "aac", "width": 320, "height": 240, "video_bitrate": "384k", "audio_bitrate": "96k", "container": "3gp"},
-    "3GP (640x480)": {"vcodec": "mpeg4", "acodec": "aac", "width": 640, "height": 480, "video_bitrate": "768k", "audio_bitrate": "128k", "container": "3gp"},
-    "PSP (MP4, H.264, 480x272)": {"vcodec": "libx264", "acodec": "aac", "width": 480, "height": 272, "video_bitrate": "800k", "audio_bitrate": "128k", "pix_fmt": "yuv420p", "container": "mp4"},
-    "PSP (AVI, XviD, 480x272)": {"vcodec": "libxvid", "acodec": "mp3", "width": 480, "height": 272, "video_bitrate": "800k", "audio_bitrate": "128k", "container": "avi"},
-    "MP4 360p (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 640, "height": 360, "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mp4", "crf": 23},
-    "MP4 480p (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 854, "height": 480, "video_bitrate": "1200k", "audio_bitrate": "128k", "container": "mp4", "crf": 23},
-    "MP4 720p (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720, "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4", "crf": 23},
-    "MP4 1080p (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080, "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mp4", "crf": 23},
-    "MP4 4K (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 3840, "height": 2160, "video_bitrate": "15000k", "audio_bitrate": "192k", "container": "mp4", "crf": 23},
-    "HEVC 360p": {"vcodec": "libx265", "acodec": "aac", "width": 640, "height": 360, "video_bitrate": "600k", "audio_bitrate": "128k", "container": "mp4", "crf": 28},
-    "HEVC 480p": {"vcodec": "libx265", "acodec": "aac", "width": 854, "height": 480, "video_bitrate": "1000k", "audio_bitrate": "128k", "container": "mp4", "crf": 28},
-    "HEVC 720p": {"vcodec": "libx265", "acodec": "aac", "width": 1280, "height": 720, "video_bitrate": "1800k", "audio_bitrate": "128k", "container": "mp4", "crf": 28},
-    "HEVC 1080p": {"vcodec": "libx265", "acodec": "aac", "width": 1920, "height": 1080, "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mp4", "crf": 28},
-    "HEVC 4K": {"vcodec": "libx265", "acodec": "aac", "width": 3840, "height": 2160, "video_bitrate": "10000k", "audio_bitrate": "192k", "container": "mp4", "crf": 28},
-    "WebM VP8 360p": {"vcodec": "libvpx", "acodec": "libvorbis", "width": 640, "height": 360, "video_bitrate": "500k", "audio_bitrate": "96k", "container": "webm"},
-    "WebM VP8 480p": {"vcodec": "libvpx", "acodec": "libvorbis", "width": 854, "height": 480, "video_bitrate": "1000k", "audio_bitrate": "96k", "container": "webm"},
-    "WebM VP9 720p": {"vcodec": "libvpx-vp9", "acodec": "libopus", "width": 1280, "height": 720, "video_bitrate": "1500k", "audio_bitrate": "96k", "container": "webm"},
-    "WebM VP9 1080p": {"vcodec": "libvpx-vp9", "acodec": "libopus", "width": 1920, "height": 1080, "video_bitrate": "3000k", "audio_bitrate": "128k", "container": "webm"},
-    "AVI: DivX, 640x480": {"vcodec": "mpeg4", "acodec": "mp3", "width": 640, "height": 480, "video_bitrate": "1200k", "audio_bitrate": "128k", "container": "avi"},
-    "AVI: DivX, 720x480": {"vcodec": "mpeg4", "acodec": "mp3", "width": 720, "height": 480, "video_bitrate": "1500k", "audio_bitrate": "128k", "container": "avi"},
-    "AVI: DivX, 1080p": {"vcodec": "mpeg4", "acodec": "mp3", "width": 1920, "height": 1080, "video_bitrate": "8000k", "audio_bitrate": "192k", "container": "avi"},
-    "MKV H.264 360p": {"vcodec": "libx264", "acodec": "aac", "width": 640, "height": 360, "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mkv", "crf": 23},
-    "MKV H.264 720p": {"vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720, "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mkv", "crf": 23},
-    "MKV H.265 1080p": {"vcodec": "libx265", "acodec": "aac", "width": 1920, "height": 1080, "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mkv", "crf": 28},
-    "MKV H.265 4K": {"vcodec": "libx265", "acodec": "aac", "width": 3840, "height": 2160, "video_bitrate": "10000k", "audio_bitrate": "192k", "container": "mkv", "crf": 28},
-    "Apple iPhone (H.264, 480x320)": {"vcodec": "libx264", "acodec": "aac", "width": 480, "height": 320, "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mp4", "movflags": "+faststart", "crf": 23},
-    "Apple iPhone (H.264, 640x480)": {"vcodec": "libx264", "acodec": "aac", "width": 640, "height": 480, "video_bitrate": "1000k", "audio_bitrate": "128k", "container": "mp4", "movflags": "+faststart", "crf": 23},
-    "Apple iPad (H.264, 1280x720)": {"vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720, "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4", "movflags": "+faststart", "crf": 23},
-    "Apple iPad (H.264, 1920x1080)": {"vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080, "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mp4", "movflags": "+faststart", "crf": 23},
-    "Android 360p (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 640, "height": 360, "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mp4", "crf": 23},
-    "Android 480p (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 854, "height": 480, "video_bitrate": "1200k", "audio_bitrate": "128k", "container": "mp4", "crf": 23},
-    "Android 720p (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720, "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4", "crf": 23},
-    "Android 1080p (H.264)": {"vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080, "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mp4", "crf": 23},
-    "MPEG-1": {"vcodec": "mpeg1video", "acodec": "mp2", "width": 720, "height": 576, "video_bitrate": "1500k", "audio_bitrate": "224k", "container": "mpeg"},
-    "MPEG-2 DVD": {"vcodec": "mpeg2video", "acodec": "mp2", "width": 720, "height": 576, "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mpeg"},
-    "MPEG-2 SVCD": {"vcodec": "mpeg2video", "acodec": "mp2", "width": 480, "height": 576, "video_bitrate": "2500k", "audio_bitrate": "192k", "container": "mpeg"},
-    "MPEG-2 VCD": {"vcodec": "mpeg2video", "acodec": "mp2", "width": 352, "height": 288, "video_bitrate": "1150k", "audio_bitrate": "224k", "container": "mpeg"},
-    "FLV (Flash Video, 480p)": {"vcodec": "flv", "acodec": "mp3", "width": 854, "height": 480, "video_bitrate": "800k", "audio_bitrate": "128k", "container": "flv"},
-    "FLV (Flash Video, 720p)": {"vcodec": "flv", "acodec": "mp3", "width": 1280, "height": 720, "video_bitrate": "1500k", "audio_bitrate": "128k", "container": "flv"},
-    "GIF Animation (320x240)": {"vcodec": "gif", "acodec": "none", "width": 320, "height": 240, "fps": 10, "container": "gif"},
-    "GIF Animation (640x480)": {"vcodec": "gif", "acodec": "none", "width": 640, "height": 480, "fps": 10, "container": "gif"},
-    "AAC Audio": {"vcodec": None, "acodec": "aac", "audio_bitrate": "192k", "container": "m4a"},
-    "AC3 Audio": {"vcodec": None, "acodec": "ac3", "audio_bitrate": "192k", "container": "ac3"},
-    "AIFF Audio": {"vcodec": None, "acodec": "pcm_s16le", "container": "aiff"},
-    "AMR Audio": {"vcodec": None, "acodec": "libopencore_amrnb", "audio_bitrate": "12k", "container": "amr"},
-    "FLAC Audio": {"vcodec": None, "acodec": "flac", "container": "flac"},
-    "MP3 Audio": {"vcodec": None, "acodec": "libmp3lame", "audio_bitrate": "192k", "container": "mp3"},
-    "OGG Audio": {"vcodec": None, "acodec": "libvorbis", "audio_bitrate": "192k", "container": "ogg"},
-    "WAV Audio": {"vcodec": None, "acodec": "pcm_s16le", "container": "wav"},
-    "DTS Audio": {"vcodec": None, "acodec": "dca", "audio_bitrate": "768k", "container": "dts"},
-    "E-AC3 Audio": {"vcodec": None, "acodec": "eac3", "audio_bitrate": "256k", "container": "ec3"},
-    "ASF (WMV, 640x480)": {"vcodec": "wmv2", "acodec": "wmav2", "width": 640, "height": 480, "video_bitrate": "1000k", "audio_bitrate": "128k", "container": "asf"},
-    "RAW Video (YUV420)": {"vcodec": "rawvideo", "acodec": "none", "pix_fmt": "yuv420p", "container": "yuv"},
-    "AV1 720p (WebM)": {
-        "vcodec": "libaom-av1",
-        "acodec": "libopus",
-        "width": 1280,
-        "height": 720,
-        "video_bitrate": "2000k",
-        "audio_bitrate": "128k",
-        "container": "webm",
-        "cpu_used": "4",
-        "threads": "4"
-    },
-    "AV1 720p (MKV, Макс. качество, медленно)": {
-        "vcodec": "libaom-av1",
-        "acodec": "libopus",
-        "width": 1280,
-        "height": 720,
-        "video_bitrate": "2000k",
-        "audio_bitrate": "128k",
-        "container": "mkv",
-        "cpu_used": "1",
-        "threads": "2"
-    },
-    "AV1 1080p (WebM)": {
-        "vcodec": "libaom-av1",
-        "acodec": "libopus",
-        "width": 1920,
-        "height": 1080,
-        "video_bitrate": "4000k",
-        "audio_bitrate": "192k",
-        "container": "webm",
-        "cpu_used": "4",
-        "threads": "4"
-    },
-    "AV1 1080p (MKV, Макс. качество, медленно)": {
-        "vcodec": "libaom-av1",
-        "acodec": "libopus",
-        "width": 1920,
-        "height": 1080,
-        "video_bitrate": "4000k",
-        "audio_bitrate": "192k",
-        "container": "mkv",
-        "cpu_used": "1",
-        "threads": "2"
-    },
-    "TikTok (9:16)": {"vcodec": "libx264", "acodec": "aac", "width": 720, "height": 1280, "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4", "movflags": "+faststart", "crf": 23},
-    "Instagram (1:1)": {"vcodec": "libx264", "acodec": "aac", "width": 1080, "height": 1080, "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mp4", "movflags": "+faststart", "crf": 23},
-    "Opus Audio": {"vcodec": None, "acodec": "libopus", "audio_bitrate": "128k", "container": "opus"},
-    "Apple ProRes 422 (1280x720)": {
-        "vcodec": "prores_ks",
-        "acodec": "pcm_s16le",
-        "width": 1280,
-        "height": 720,
-        "video_bitrate": "50M",
-        "audio_bitrate": "1536k",
-        "container": "mov",
-        "pix_fmt": "yuv422p10le"
-    },
-    "Apple ProRes 4444 (1920x1080)": {
-        "vcodec": "prores_ks",
-        "acodec": "pcm_s16le",
-        "width": 1920,
-        "height": 1080,
-        "video_bitrate": "100M",
-        "audio_bitrate": "1536k",
-        "container": "mov",
-        "pix_fmt": "yuv444p10le"
-    },
-    "H.264 NVENC (1080p)": {
-        "vcodec": "h264_nvenc",
-        "acodec": "aac",
-        "width": 1920,
-        "height": 1080,
-        "video_bitrate": "5000k",
-        "audio_bitrate": "192k",
-        "container": "mp4",
-        "preset": "slow",
-        "profile": "high"
-    },
-    "H.265 NVENC (1080p)": {
-        "vcodec": "hevc_nvenc",
-        "acodec": "aac",
-        "width": 1920,
-        "height": 1080,
-        "video_bitrate": "4000k",
-        "audio_bitrate": "192k",
-        "container": "mp4",
-        "preset": "slow",
-        "profile": "main10"
-    },
-    "H.264 QuickSync (1080p)": {
-        "vcodec": "h264_qsv",
-        "acodec": "aac",
-        "width": 1920,
-        "height": 1080,
-        "video_bitrate": "5000k",
-        "audio_bitrate": "192k",
-        "container": "mp4",
-        "preset": "quality"
-    },
-    "MOV (H.264, 720p)": {"vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720, "video_bitrate": "2500k", "audio_bitrate": "192k", "container": "mov", "movflags": "+faststart", "crf": 23},
-    "MOV (H.264, 1080p)": {"vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080, "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mov", "movflags": "+faststart", "crf": 23},
-    "MOV (ProRes 422, 720p)": {"vcodec": "prores_ks", "acodec": "pcm_s16le", "width": 1280, "height": 720, "video_bitrate": "50M", "audio_bitrate": "1536k", "container": "mov", "pix_fmt": "yuv422p10le"},
-    "MOV (H.265, 1080p)": {"vcodec": "libx265", "acodec": "aac", "width": 1920, "height": 1080, "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mov", "crf": 28, "movflags": "+faststart"},
-    "MPEG-TS (H.264, 1080p)": {"vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080, "video_bitrate": "6000k", "audio_bitrate": "192k", "container": "ts", "crf": 23},
-    "FLAC (24-bit, 96kHz)": {"vcodec": None, "acodec": "flac", "audio_bitrate": "2304k", "container": "flac", "sample_fmt": "s32", "ar": 96000},
-    "GIF (720p, 15 FPS)": {"vcodec": "gif", "acodec": "none", "width": 1280, "height": 720, "fps": 15, "container": "gif"},
-    "DNxHD (1080p)": {"vcodec": "dnxhd", "acodec": "pcm_s16le", "width": 1920, "height": 1080, "video_bitrate": "120M", "audio_bitrate": "1536k", "container": "mov"},
-    "MP3 (320 kbps)": {"vcodec": None, "acodec": "libmp3lame", "audio_bitrate": "320k", "container": "mp3", "qscale:a": 0},
-}
+def get_profile_name(lang, codec, resolution, quality_type=None):
+    if quality_type == "fast":
+        return f"{codec} ({resolution}, {LANGS[lang]['quality_fast']})"
+    if quality_type == "best_slow":
+        return f"{codec} ({resolution}, {LANGS[lang]['quality_best_slow']})"
+    return f"{codec} ({resolution})"
+
+def get_localized_profiles(lang):
+    profiles = {
+        "3GP (176x144)": {
+            "vcodec": "h263", "acodec": "aac", "width": 176, "height": 144,
+            "video_bitrate": "128k", "audio_bitrate": "64k", "container": "3gp"
+        },
+        "3GP (352x288)": {
+            "vcodec": "h263", "acodec": "aac", "width": 352, "height": 288,
+            "video_bitrate": "384k", "audio_bitrate": "96k", "container": "3gp"
+        },
+        "3GP (640x480)": {
+            "vcodec": "mpeg4", "acodec": "aac", "width": 640, "height": 480,
+            "video_bitrate": "768k", "audio_bitrate": "128k", "container": "3gp"
+        },
+        "PSP (MP4, H.264, 480x272)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 480, "height": 272,
+            "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mp4", "pix_fmt": "yuv420p"
+        },
+        "PSP (AVI, XviD, 480x272)": {
+            "vcodec": "libxvid", "acodec": "mp3", "width": 480, "height": 272,
+            "video_bitrate": "800k", "audio_bitrate": "128k", "container": "avi"
+        },
+        "MP4 360p (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 640, "height": 360,
+            "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mp4", "crf": 23
+        },
+        "MP4 480p (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 854, "height": 480,
+            "video_bitrate": "1200k", "audio_bitrate": "128k", "container": "mp4", "crf": 23
+        },
+        "MP4 720p (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720,
+            "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4", "crf": 23
+        },
+        "MP4 1080p (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mp4", "crf": 23
+        },
+        "MP4 4K (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 3840, "height": 2160,
+            "video_bitrate": "15000k", "audio_bitrate": "192k", "container": "mp4", "crf": 23
+        },
+        get_profile_name(lang, "H.264", "1080p", "fast"): {
+            "vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mp4", "crf": 23, "preset": "ultrafast"
+        },
+        get_profile_name(lang, "H.264", "1080p", "best_slow"): {
+            "vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mp4", "crf": 18, "preset": "veryslow"
+        },
+        "HEVC 360p": {
+            "vcodec": "libx265", "acodec": "aac", "width": 640, "height": 360,
+            "video_bitrate": "600k", "audio_bitrate": "128k", "container": "mp4", "crf": 28
+        },
+        "HEVC 480p": {
+            "vcodec": "libx265", "acodec": "aac", "width": 854, "height": 480,
+            "video_bitrate": "1000k", "audio_bitrate": "128k", "container": "mp4", "crf": 28
+        },
+        "HEVC 720p": {
+            "vcodec": "libx265", "acodec": "aac", "width": 1280, "height": 720,
+            "video_bitrate": "1800k", "audio_bitrate": "128k", "container": "mp4", "crf": 28
+        },
+        "HEVC 1080p": {
+            "vcodec": "libx265", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mp4", "crf": 28
+        },
+        "HEVC 4K": {
+            "vcodec": "libx265", "acodec": "aac", "width": 3840, "height": 2160,
+            "video_bitrate": "10000k", "audio_bitrate": "192k", "container": "mp4", "crf": 28
+        },
+        get_profile_name(lang, "H.265", "1080p", "fast"): {
+            "vcodec": "libx265", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mp4", "crf": 28, "preset": "ultrafast"
+        },
+        get_profile_name(lang, "H.265", "1080p", "best_slow"): {
+            "vcodec": "libx265", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mp4", "crf": 20, "preset": "veryslow"
+        },
+        "WebM VP8 360p": {
+            "vcodec": "libvpx", "acodec": "libvorbis", "width": 640, "height": 360,
+            "video_bitrate": "500k", "audio_bitrate": "96k", "container": "webm"
+        },
+        "WebM VP8 480p": {
+            "vcodec": "libvpx", "acodec": "libvorbis", "width": 854, "height": 480,
+            "video_bitrate": "1000k", "audio_bitrate": "96k", "container": "webm"
+        },
+        "WebM VP9 720p": {
+            "vcodec": "libvpx-vp9", "acodec": "libopus", "width": 1280, "height": 720,
+            "video_bitrate": "1500k", "audio_bitrate": "96k", "container": "webm"
+        },
+        "WebM VP9 1080p": {
+            "vcodec": "libvpx-vp9", "acodec": "libopus", "width": 1920, "height": 1080,
+            "video_bitrate": "3000k", "audio_bitrate": "128k", "container": "webm"
+        },
+        "AVI: DivX, 640x480": {
+            "vcodec": "mpeg4", "acodec": "mp3", "width": 640, "height": 480,
+            "video_bitrate": "1200k", "audio_bitrate": "128k", "container": "avi"
+        },
+        "AVI: DivX, 720x480": {
+            "vcodec": "mpeg4", "acodec": "mp3", "width": 720, "height": 480,
+            "video_bitrate": "1500k", "audio_bitrate": "128k", "container": "avi"
+        },
+        "AVI: DivX, 1080p": {
+            "vcodec": "mpeg4", "acodec": "mp3", "width": 1920, "height": 1080,
+            "video_bitrate": "8000k", "audio_bitrate": "192k", "container": "avi"
+        },
+        "MKV H.264 360p": {
+            "vcodec": "libx264", "acodec": "aac", "width": 640, "height": 360,
+            "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mkv", "crf": 23
+        },
+        "MKV H.264 720p": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720,
+            "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mkv", "crf": 23
+        },
+        "MKV H.265 1080p": {
+            "vcodec": "libx265", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mkv", "crf": 28
+        },
+        "MKV H.265 4K": {
+            "vcodec": "libx265", "acodec": "aac", "width": 3840, "height": 2160,
+            "video_bitrate": "10000k", "audio_bitrate": "192k", "container": "mkv", "crf": 28
+        },
+        "Apple iPhone (H.264, 480x320)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 480, "height": 320,
+            "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mp4", "movflags": "+faststart", "crf": 23
+        },
+        "Apple iPhone (H.264, 640x480)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 640, "height": 480,
+            "video_bitrate": "1000k", "audio_bitrate": "128k", "container": "mp4", "movflags": "+faststart", "crf": 23
+        },
+        "Apple iPad (H.264, 1280x720)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720,
+            "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4", "movflags": "+faststart", "crf": 23
+        },
+        "Apple iPad (H.264, 1920x1080)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mp4", "movflags": "+faststart", "crf": 23
+        },
+        "Android 360p (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 640, "height": 360,
+            "video_bitrate": "800k", "audio_bitrate": "128k", "container": "mp4", "crf": 23
+        },
+        "Android 480p (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 854, "height": 480,
+            "video_bitrate": "1200k", "audio_bitrate": "128k", "container": "mp4", "crf": 23
+        },
+        "Android 720p (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720,
+            "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4", "crf": 23
+        },
+        "Android 1080p (H.264)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mp4", "crf": 23
+        },
+        "MPEG-1": {
+            "vcodec": "mpeg1video", "acodec": "mp2", "width": 720, "height": 576,
+            "video_bitrate": "1500k", "audio_bitrate": "224k", "container": "mpeg"
+        },
+        "MPEG-2 DVD": {
+            "vcodec": "mpeg2video", "acodec": "mp2", "width": 720, "height": 576,
+            "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mpeg"
+        },
+        "MPEG-2 SVCD": {
+            "vcodec": "mpeg2video", "acodec": "mp2", "width": 480, "height": 576,
+            "video_bitrate": "2500k", "audio_bitrate": "192k", "container": "mpeg"
+        },
+        "MPEG-2 VCD": {
+            "vcodec": "mpeg2video", "acodec": "mp2", "width": 352, "height": 288,
+            "video_bitrate": "1150k", "audio_bitrate": "224k", "container": "mpeg"
+        },
+        "FLV (Flash Video, 480p)": {
+            "vcodec": "flv", "acodec": "mp3", "width": 854, "height": 480,
+            "video_bitrate": "800k", "audio_bitrate": "128k", "container": "flv"
+        },
+        "FLV (Flash Video, 720p)": {
+            "vcodec": "flv", "acodec": "mp3", "width": 1280, "height": 720,
+            "video_bitrate": "1500k", "audio_bitrate": "128k", "container": "flv"
+        },
+        "GIF Animation (320x240)": {
+            "vcodec": "gif", "acodec": "none", "width": 320, "height": 240,
+            "fps": 10, "container": "gif"
+        },
+        "GIF Animation (640x480)": {
+            "vcodec": "gif", "acodec": "none", "width": 640, "height": 480,
+            "fps": 10, "container": "gif"
+        },
+        "AAC Audio": {
+            "vcodec": None, "acodec": "aac", "audio_bitrate": "192k", "container": "m4a"
+        },
+        "AC3 Audio": {
+            "vcodec": None, "acodec": "ac3", "audio_bitrate": "192k", "container": "ac3"
+        },
+        "AIFF Audio": {
+            "vcodec": None, "acodec": "pcm_s16le", "container": "aiff"
+        },
+        "AMR Audio": {
+            "vcodec": None, "acodec": "libopencore_amrnb", "audio_bitrate": "12k", "container": "amr"
+        },
+        "FLAC Audio": {
+            "vcodec": None, "acodec": "flac", "container": "flac"
+        },
+        "MP3 Audio": {
+            "vcodec": None, "acodec": "libmp3lame", "audio_bitrate": "192k", "container": "mp3"
+        },
+        "OGG Audio": {
+            "vcodec": None, "acodec": "libvorbis", "audio_bitrate": "192k", "container": "ogg"
+        },
+        "WAV Audio": {
+            "vcodec": None, "acodec": "pcm_s16le", "container": "wav"
+        },
+        "DTS Audio": {
+            "vcodec": None, "acodec": "dca", "audio_bitrate": "768k", "container": "dts"
+        },
+        "E-AC3 Audio": {
+            "vcodec": None, "acodec": "eac3", "audio_bitrate": "256k", "container": "ec3"
+        },
+        "ASF (WMV, 640x480)": {
+            "vcodec": "wmv2", "acodec": "wmav2", "width": 640, "height": 480,
+            "video_bitrate": "1000k", "audio_bitrate": "128k", "container": "asf"
+        },
+        "RAW Video (YUV420)": {
+            "vcodec": "rawvideo", "acodec": "none", "pix_fmt": "yuv420p", "container": "yuv"
+        },
+        get_profile_name(lang, "AV1", "720p", "fast"): {
+            "vcodec": "libaom-av1", "acodec": "libopus", "width": 1280, "height": 720,
+            "video_bitrate": "2000k", "audio_bitrate": "128k", "container": "webm",
+            "cpu_used": "4", "threads": "4"
+        },
+        get_profile_name(lang, "AV1", "720p", "best_slow"): {
+            "vcodec": "libaom-av1", "acodec": "libopus", "width": 1280, "height": 720,
+            "video_bitrate": "2000k", "audio_bitrate": "128k", "container": "mkv",
+            "cpu_used": "1", "threads": "2"
+        },
+        get_profile_name(lang, "AV1", "1080p", "fast"): {
+            "vcodec": "libaom-av1", "acodec": "libopus", "width": 1920, "height": 1080,
+            "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "webm",
+            "cpu_used": "4", "threads": "4"
+        },
+        get_profile_name(lang, "AV1", "1080p", "best_slow"): {
+            "vcodec": "libaom-av1", "acodec": "libopus", "width": 1920, "height": 1080,
+            "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mkv",
+            "cpu_used": "1", "threads": "2"
+        },
+        "TikTok (9:16)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 720, "height": 1280,
+            "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4",
+            "movflags": "+faststart", "crf": 23
+        },
+        "Instagram (1:1)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1080, "height": 1080,
+            "video_bitrate": "4000k", "audio_bitrate": "192k", "container": "mp4",
+            "movflags": "+faststart", "crf": 23
+        },
+        "Apple ProRes 422 (1280x720)": {
+            "vcodec": "prores_ks", "acodec": "pcm_s16le", "width": 1280, "height": 720,
+            "video_bitrate": "50M", "audio_bitrate": "1536k", "container": "mov",
+            "pix_fmt": "yuv422p10le"
+        },
+        "Apple ProRes 4444 (1920x1080)": {
+            "vcodec": "prores_ks", "acodec": "pcm_s16le", "width": 1920, "height": 1080,
+            "video_bitrate": "100M", "audio_bitrate": "1536k", "container": "mov",
+            "pix_fmt": "yuv444p10le"
+        },
+        "MOV (H.264, 720p)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720,
+            "video_bitrate": "2500k", "audio_bitrate": "192k", "container": "mov",
+            "movflags": "+faststart", "crf": 23
+        },
+        "MOV (H.264, 1080p)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mov",
+            "movflags": "+faststart", "crf": 23
+        },
+        "MOV (ProRes 422, 720p)": {
+            "vcodec": "prores_ks", "acodec": "pcm_s16le", "width": 1280, "height": 720,
+            "video_bitrate": "50M", "audio_bitrate": "1536k", "container": "mov",
+            "pix_fmt": "yuv422p10le"
+        },
+        "MOV (H.265, 1080p)": {
+            "vcodec": "libx265", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "5000k", "audio_bitrate": "192k", "container": "mov",
+            "crf": 28, "movflags": "+faststart"
+        },
+        "MPEG-TS (H.264, 1080p)": {
+            "vcodec": "libx264", "acodec": "aac", "width": 1920, "height": 1080,
+            "video_bitrate": "6000k", "audio_bitrate": "192k", "container": "ts", "crf": 23
+        },
+        "FLAC (24-bit, 96kHz)": {
+            "vcodec": None, "acodec": "flac", "audio_bitrate": "2304k", "container": "flac",
+            "sample_fmt": "s32", "ar": 96000
+        },
+        "GIF (720p, 15 FPS)": {
+            "vcodec": "gif", "acodec": "none", "width": 1280, "height": 720,
+            "fps": 15, "container": "gif"
+        },
+        "DNxHD (1080p)": {
+            "vcodec": "dnxhd", "acodec": "pcm_s16le", "width": 1920, "height": 1080,
+            "video_bitrate": "120M", "audio_bitrate": "1536k", "container": "mov"
+        },
+        "MP3 (320 kbps)": {
+            "vcodec": None, "acodec": "libmp3lame", "audio_bitrate": "320k", "container": "mp3", "qscale:a": 0
+        },
+        "Opus Audio": {
+            "vcodec": None, "acodec": "libopus", "audio_bitrate": "128k", "container": "opus"
+        },
+    }
+    return profiles
 
 CONVERT_DIR = os.path.expanduser("~/.Convert")
 PREFS_PATH = os.path.join(CONVERT_DIR, "convert_prefs.json")
@@ -449,7 +688,12 @@ def ensure_convert_dir():
         os.makedirs(CONVERT_DIR, exist_ok=True)
 
 def load_prefs():
-    prefs = {"lang": "ru", "output_dir": os.path.expanduser("~"), "max_threads": 2, "trim_enabled": False}
+    prefs = {
+        "lang": "ru",
+        "output_dir": os.path.expanduser("~"),
+        "max_threads": 2,
+        "trim_enabled": False
+    }
     try:
         if os.path.exists(PREFS_PATH):
             with open(PREFS_PATH, "r", encoding="utf-8") as f:
@@ -457,44 +701,158 @@ def load_prefs():
                 prefs.update(data)
     except Exception as e:
         current_lang = prefs.get("lang", "ru")
-        print(LANGS.get(current_lang, {}).get("conversion_error", "Ошибка конвертации: {error}").format(error=e))
+        print(LANGS.get(current_lang, {}).get("conversion_error", "Ошибка: {error}").format(error=e))
     return prefs
 
-def save_prefs(p):
+def save_prefs(prefs):
     try:
         with open(PREFS_PATH, "w", encoding="utf-8") as f:
-            json.dump(p, f, ensure_ascii=False, indent=2)
+            json.dump(prefs, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        current_lang = p.get("lang", "ru")
-        print(LANGS.get(current_lang, {}).get("conversion_error", "Ошибка конвертации: {error}").format(error=e))
+        current_lang = prefs.get("lang", "ru")
+        print(LANGS.get(current_lang, {}).get("conversion_error", "Ошибка: {error}").format(error=e))
 
 def check_ffmpeg():
     try:
-        subprocess.run(["ffmpeg", "-version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return True
+        with subprocess.Popen(
+            ["ffmpeg", "-version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        ) as process:
+            process.communicate()
+            return process.returncode == 0
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
 def get_video_resolution(input_file):
     try:
-        result = subprocess.run(
-            ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", input_file],
+        with subprocess.Popen(
+            [
+                "ffprobe",
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height",
+                "-of", "csv=s=x:p=0",
+                input_file
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
-        )
-        resolution = result.stdout.strip()
-        if resolution:
-            width, height = map(int, resolution.split("x"))
-            return width, height
+            text=True
+        ) as process:
+            result = process.communicate()
+            resolution = result[0].strip()
+            if resolution:
+                width, height = map(int, resolution.split("x"))
+                return width, height
+            return None, None
     except Exception as e:
         current_lang = load_prefs().get("lang", "ru")
-        print(LANGS.get(current_lang, {}).get("resolution_error", "Ошибка при получении разрешения: {error}").format(error=e))
-    return None, None
+        print(LANGS.get(current_lang, {}).get("resolution_error", "Ошибка: {error}").format(error=e))
+        return None, None
+
+def parse_time(time_str):
+    if not time_str:
+        return None
+    if ':' in time_str:
+        try:
+            minutes, seconds = map(float, time_str.split(':'))
+            return minutes * 60 + seconds
+        except ValueError:
+            return None
+    try:
+        return float(time_str)
+    except ValueError:
+        return None
+
+def build_ffmpeg_args(window, infile, prof):
+    args = [
+        "ffmpeg",
+        "-y" if window.check_overwrite.get_active() else "-n",
+        "-i", infile
+    ]
+
+    if window.trim_enabled:
+        start_seconds = parse_time(window.entry_trim_start.get_text().strip())
+        end_seconds = parse_time(window.entry_trim_end.get_text().strip())
+
+        if start_seconds is not None and start_seconds > 0:
+            args += ["-ss", str(start_seconds)]
+        if end_seconds is not None and end_seconds > 0:
+            args += ["-to", str(end_seconds)]
+
+    if prof.get("vcodec") and prof["vcodec"] != "copy":
+        args += ["-c:v", prof["vcodec"]]
+        if "video_bitrate" in prof:
+            args += ["-b:v", prof["video_bitrate"]]
+        if "width" in prof and "height" in prof:
+            target_width = prof.get("width", 0)
+            target_height = prof.get("height", 0)
+            if prof.get("container") == "mp4" and target_width == 720 and target_height == 1280:
+                args += [
+                    "-vf",
+                    f"scale=-1:{prof['height']}:force_original_aspect_ratio=increase,crop={prof['width']}:{prof['height']}:ceil((in_w-out_w)/2):0"
+                ]
+            elif prof.get("container") == "mp4" and target_width == 1080 and target_height == 1080:
+                args += [
+                    "-vf",
+                    "scale='if(gt(a,1),1080,-1)':'if(gt(a,1),-1,1080)',pad=1080:1080:(ow-iw)/2:(oh-ih)/2:color=black"
+                ]
+            else:
+                args += [
+                    "-vf",
+                    f"scale={prof['width']}:{prof['height']}"
+                ]
+        if prof.get("pix_fmt"):
+            args += ["-pix_fmt", prof["pix_fmt"]]
+        if prof["vcodec"] == "libaom-av1":
+            if "cpu_used" in prof:
+                args += ["-cpu-used", prof["cpu_used"]]
+            if "threads" in prof:
+                args += ["-threads", prof["threads"]]
+        if prof["vcodec"] in ("libx264", "libx265", "h264_nvenc", "hevc_nvenc", "h264_qsv"):
+            if "preset" in prof:
+                args += ["-preset", prof["preset"]]
+            if "profile" in prof:
+                args += ["-profile:v", prof["profile"]]
+            if "crf" in prof:
+                args += ["-crf", str(prof["crf"])]
+        if prof["vcodec"].startswith("libvpx"):
+            args += ["-crf", str(prof.get("crf", 30)), "-b:v", "0"]
+        if prof.get("fps"):
+            args += ["-r", str(prof["fps"])]
+    else:
+        if prof.get("vcodec") is None:
+            args += ["-vn"]
+        else:
+            args += ["-c:v", "copy"]
+
+    if prof.get("acodec") and prof["acodec"] != "copy":
+        args += ["-c:a", prof["acodec"]]
+        if prof.get("audio_bitrate"):
+            args += ["-b:a", prof["audio_bitrate"]]
+        if prof["acodec"] == "dca":
+            args += ["-strict", "-2"]
+        if prof["acodec"] == "libopencore_amrnb":
+            args += ["-ar", "8000", "-ac", "1"]
+        if prof.get("sample_fmt"):
+            args += ["-sample_fmt", prof["sample_fmt"]]
+        if prof.get("ar"):
+            args += ["-ar", str(prof["ar"])]
+    else:
+        args += ["-c:a", "copy"]
+
+    if prof.get("movflags"):
+        args += ["-movflags", prof["movflags"]]
+
+    return args
 
 class ProgressWindow(Gtk.Window):
     def __init__(self, parent, filename):
-        super().__init__(title=LANGS[parent.lang]["progress_window_title"], transient_for=parent, type_hint=Gdk.WindowTypeHint.DIALOG)
+        super().__init__(
+            title=LANGS[parent.lang]["progress_window_title"],
+            transient_for=parent,
+            type_hint=Gdk.WindowTypeHint.DIALOG
+        )
         self.set_default_size(400, 150)
         self.set_border_width(10)
         self.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
@@ -505,10 +863,14 @@ class ProgressWindow(Gtk.Window):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.add(vbox)
 
-        lbl_file = Gtk.Label(label=f"{LANGS[self.parent.lang]['file']} {os.path.basename(self.filename)}")
-        self.lbl_status = Gtk.Label(label=f"{LANGS[self.parent.lang]['status']} {LANGS[self.parent.lang]['progress']} 0%")
+        lbl_file = Gtk.Label(
+            label=f"{LANGS[self.parent.lang]['file']} {os.path.basename(self.filename)}"
+        )
+        self.lbl_status = Gtk.Label(
+            label=f"{LANGS[self.parent.lang]['status']} {LANGS[self.parent.lang]['progress']} 0%"
+        )
         self.progress = Gtk.ProgressBar()
-        btn_cancel = Gtk.Button(label="Cancel")
+        btn_cancel = Gtk.Button(label=LANGS[self.parent.lang]["cancel"])
         btn_cancel.connect("clicked", self.on_cancel)
 
         vbox.pack_start(lbl_file, False, False, 0)
@@ -518,7 +880,10 @@ class ProgressWindow(Gtk.Window):
 
     def update_progress(self, percent):
         GLib.idle_add(self.progress.set_fraction, percent / 100.0)
-        GLib.idle_add(self.lbl_status.set_text, f"{LANGS[self.parent.lang]['status']} {LANGS[self.parent.lang]['progress']} {percent}%")
+        GLib.idle_add(
+            self.lbl_status.set_text,
+            f"{LANGS[self.parent.lang]['status']} {LANGS[self.parent.lang]['progress']} {percent}%"
+        )
 
     def on_cancel(self, button):
         self.destroy()
@@ -526,14 +891,15 @@ class ProgressWindow(Gtk.Window):
 class ConverterWindow(Gtk.Window):
     def __init__(self):
         self.prefs = load_prefs()
-        self.profiles = EXTENDED_PROFILES
         self.lang = self.prefs.get("lang", "ru")
+        self.profiles = get_localized_profiles(self.lang)
         self.output_dir = self.prefs.get("output_dir", os.path.expanduser("~"))
         self.max_threads = self.prefs.get("max_threads", 2)
         self.trim_enabled = self.prefs.get("trim_enabled", False)
         self._stop = False
         self._ffmpeg_process = None
         self._conversion_completed = False
+        self.playbin = None
         super().__init__(title=LANGS[self.lang]["title"])
         self.set_default_size(750, 500)
 
@@ -543,65 +909,85 @@ class ConverterWindow(Gtk.Window):
             self.show_ffmpeg_error()
             return
 
+        self.create_widgets()
+
+        target = Gtk.TargetEntry.new("text/uri-list", 0, 0)
+        self.entry_in.drag_dest_set(Gtk.DestDefaults.ALL, [target], Gdk.DragAction.COPY)
+        self.entry_in.connect("drag-data-received", self.on_drag_data_received_input)
+
+        self.connect("destroy", self.on_window_destroy)
+
+        with open(LOG_PATH, "w", encoding="utf-8") as f:
+            f.write("=== Converter Log ===\n")
+
+    def resize_widgets(self, widget):
+        widget.queue_resize()
+        if isinstance(widget, (Gtk.Grid, Gtk.Box)):
+            for child in widget.get_children():
+                self.resize_widgets(child)
+
+    def create_widgets(self):
         grid = Gtk.Grid(column_spacing=6, row_spacing=6, margin=6)
         self.add(grid)
 
-        L = LANGS[self.lang]
+        current_language = LANGS[self.lang]
 
         lang_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        lbl_lang = Gtk.Label(label=L["lang"], xalign=0)
+        lbl_lang = Gtk.Label(label=current_language["lang"], xalign=0)
         self.lang_combo = Gtk.ComboBoxText()
         languages = ["be", "de", "en", "ru", "uk"]
-        for lang in languages:
-            self.lang_combo.append_text(lang)
-        self.lang_combo.set_active(languages.index(self.lang) if self.lang in languages else 0)
+        for language in languages:
+            self.lang_combo.append_text(language)
+        self.lang_combo.set_active(
+            languages.index(self.lang) if self.lang in languages else 0
+        )
         self.lang_combo.connect("changed", self.on_lang_changed)
         lang_box.pack_start(lbl_lang, False, False, 0)
         lang_box.pack_start(self.lang_combo, False, False, 0)
         grid.attach(lang_box, 0, 0, 2, 1)
 
-        lbl_in = Gtk.Label(label=L["input"], xalign=0)
+        lbl_in = Gtk.Label(label=current_language["input"], xalign=0)
         self.entry_in = Gtk.Entry()
-        btn_browse = Gtk.Button(label=L["browse"])
+        btn_browse = Gtk.Button(label=current_language["browse"])
         btn_browse.connect("clicked", self.on_browse)
 
-        lbl_out = Gtk.Label(label=L["output"], xalign=0)
+        lbl_out = Gtk.Label(label=current_language["output"], xalign=0)
         self.entry_out = Gtk.Entry()
 
-        lbl_out_dir = Gtk.Label(label=L["output_dir"], xalign=0)
+        lbl_out_dir = Gtk.Label(label=current_language["output_dir"], xalign=0)
         self.entry_out_dir = Gtk.Entry(text=self.output_dir)
-        btn_out_dir = Gtk.Button(label=L["select_output_dir"])
+        btn_out_dir = Gtk.Button(label=current_language["select_output_dir"])
         btn_out_dir.connect("clicked", self.on_browse_out_dir)
 
-        lbl_profile = Gtk.Label(label=L["profile"], xalign=0)
+        lbl_profile = Gtk.Label(label=current_language["profile"], xalign=0)
         self.combo = Gtk.ComboBoxText()
         self.update_profile_combo()
         self.combo.connect("changed", self.on_profile_changed)
 
-        self.check_overwrite = Gtk.CheckButton(label=L["overwrite"])
-        self.check_trim = Gtk.CheckButton(label=L["trim_enable"])
+        self.check_overwrite = Gtk.CheckButton(label=current_language["overwrite"])
+        self.check_trim = Gtk.CheckButton(label=current_language["trim_enable"])
         self.check_trim.set_active(self.trim_enabled)
         self.check_trim.connect("toggled", self.on_trim_toggled)
 
-        lbl_trim_start = Gtk.Label(label=L["trim_start"], xalign=0)
+        lbl_trim_start = Gtk.Label(label=current_language["trim_start"], xalign=0)
         self.entry_trim_start = Gtk.Entry()
         self.entry_trim_start.set_text("0")
         self.entry_trim_start.set_sensitive(self.trim_enabled)
 
-        lbl_trim_end = Gtk.Label(label=L["trim_end"], xalign=0)
+        lbl_trim_end = Gtk.Label(label=current_language["trim_end"], xalign=0)
         self.entry_trim_end = Gtk.Entry()
         self.entry_trim_end.set_sensitive(self.trim_enabled)
 
-        btn_convert = Gtk.Button(label=L["convert"])
+        btn_convert = Gtk.Button(label=current_language["convert"])
         btn_convert.connect("clicked", self.on_convert)
-        btn_preview = Gtk.Button(label=L["preview"])
+        btn_preview = Gtk.Button(label=current_language["preview"])
         btn_preview.connect("clicked", self.on_preview)
-        btn_pause = Gtk.Button(label=L["pause"])
+        btn_pause = Gtk.Button(label=current_language["pause"])
         btn_pause.connect("clicked", self.on_pause)
-        btn_resume = Gtk.Button(label=L["resume"])
+        btn_resume = Gtk.Button(label=current_language["resume"])
         btn_resume.connect("clicked", self.on_resume)
 
-        lbl_log = Gtk.Label(label=L["log"], xalign=0)
+        lbl_log = Gtk.Label(label=current_language["log"], xalign=0)
         self.progress = Gtk.ProgressBar()
         self.logview = Gtk.TextView()
         self.logview.set_editable(False)
@@ -614,17 +1000,17 @@ class ConverterWindow(Gtk.Window):
         scroller_log.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scroller_log.set_size_request(350, 150)
         scroller_log.add(self.logview)
-        btn_clear_log = Gtk.Button(label=L["clear_log"])
+        btn_clear_log = Gtk.Button(label=current_language["clear_log"])
         btn_clear_log.connect("clicked", lambda b: self.logbuf.set_text(""))
 
-        btn_preset = Gtk.Button(label=L["preset_mgr"])
+        btn_preset = Gtk.Button(label=current_language["preset_mgr"])
         btn_preset.connect("clicked", self.on_presets)
-        btn_export = Gtk.Button(label=L["export"])
+        btn_export = Gtk.Button(label=current_language["export"])
         btn_export.connect("clicked", self.on_export_profiles)
-        btn_import = Gtk.Button(label=L["import"])
+        btn_import = Gtk.Button(label=current_language["import"])
         btn_import.connect("clicked", self.on_import_profiles)
 
-        lbl_threads = Gtk.Label(label=L["max_threads"], xalign=0)
+        lbl_threads = Gtk.Label(label=current_language["max_threads"], xalign=0)
         adjustment = Gtk.Adjustment(
             value=self.max_threads,
             lower=1,
@@ -678,28 +1064,19 @@ class ConverterWindow(Gtk.Window):
         grid.attach(left_vbox, 0, 1, 1, 1)
         grid.attach(right_vbox, 1, 1, 1, 1)
 
-        target = Gtk.TargetEntry.new("text/uri-list", 0, 0)
-        self.entry_in.drag_dest_set(Gtk.DestDefaults.ALL, [target], Gdk.DragAction.COPY)
-        self.entry_in.connect("drag-data-received", self.on_drag_data_received_input)
-
-        self.connect("destroy", self.on_window_destroy)
-
-        with open(LOG_PATH, "w", encoding="utf-8") as f:
-            f.write("=== Converter Log ===\n")
-
     def append_log(self, text, tag=None):
-        end = self.logbuf.get_end_iter()
-        if tag:
-            self.logbuf.insert_with_tags(end, text + "\n", self.logbuf.get_tag_table().lookup(tag))
-        else:
-            self.logbuf.insert(end, text + "\n")
-
-        mark = self.logbuf.create_mark("end", end, left_gravity=False)
-        self.logview.scroll_to_mark(mark, 0.0, True, 0.0, 1.0)
-        self.logbuf.delete_mark(mark)
-
-        with open(LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(text + "\n")
+        def update_log():
+            end = self.logbuf.get_end_iter()
+            if tag:
+                self.logbuf.insert_with_tags(end, text + "\n", self.logbuf.get_tag_table().lookup(tag))
+            else:
+                self.logbuf.insert(end, text + "\n")
+            mark = self.logbuf.create_mark(None, end, left_gravity=True)
+            self.logview.scroll_to_mark(mark, 0.0, True, 0.0, 1.0)
+            self.logbuf.delete_mark(mark)
+            with open(LOG_PATH, "a", encoding="utf-8") as f:
+                f.write(text + "\n")
+        GLib.idle_add(update_log)
 
     def on_trim_toggled(self, button):
         self.trim_enabled = button.get_active()
@@ -750,16 +1127,30 @@ class ConverterWindow(Gtk.Window):
         Gtk.main_quit()
 
     def on_browse(self, button):
-        dlg = Gtk.FileChooserDialog(title=LANGS[self.lang]["browse"], parent=self, action=Gtk.FileChooserAction.OPEN)
-        dlg.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OPEN, Gtk.ResponseType.OK)
+        dlg = Gtk.FileChooserDialog(
+            title=LANGS[self.lang]["browse"],
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN
+        )
+        dlg.add_buttons(
+            LANGS[self.lang]["cancel"], Gtk.ResponseType.CANCEL,
+            LANGS[self.lang]["ok"], Gtk.ResponseType.OK
+        )
         if dlg.run() == Gtk.ResponseType.OK:
             self.entry_in.set_text(dlg.get_filename())
             self.update_output_path()
         dlg.destroy()
 
     def on_browse_out_dir(self, button):
-        dlg = Gtk.FileChooserDialog(title=LANGS[self.lang]["select_output_dir"], parent=self, action=Gtk.FileChooserAction.SELECT_FOLDER)
-        dlg.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OPEN, Gtk.ResponseType.OK)
+        dlg = Gtk.FileChooserDialog(
+            title=LANGS[self.lang]["select_output_dir"],
+            parent=self,
+            action=Gtk.FileChooserAction.SELECT_FOLDER
+        )
+        dlg.add_buttons(
+            LANGS[self.lang]["cancel"], Gtk.ResponseType.CANCEL,
+            LANGS[self.lang]["ok"], Gtk.ResponseType.OK
+        )
         if dlg.run() == Gtk.ResponseType.OK:
             self.output_dir = dlg.get_filename()
             self.entry_out_dir.set_text(self.output_dir)
@@ -779,8 +1170,15 @@ class ConverterWindow(Gtk.Window):
         dlg.destroy()
 
     def on_export_profiles(self, button):
-        dlg = Gtk.FileChooserDialog(title=LANGS[self.lang]["export"], parent=self, action=Gtk.FileChooserAction.SAVE)
-        dlg.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+        dlg = Gtk.FileChooserDialog(
+            title=LANGS[self.lang]["export"],
+            parent=self,
+            action=Gtk.FileChooserAction.SAVE
+        )
+        dlg.add_buttons(
+            LANGS[self.lang]["cancel"], Gtk.ResponseType.CANCEL,
+            LANGS[self.lang]["ok"], Gtk.ResponseType.OK
+        )
         if dlg.run() == Gtk.ResponseType.OK:
             path = dlg.get_filename()
             if not path.endswith(".json"):
@@ -791,8 +1189,15 @@ class ConverterWindow(Gtk.Window):
         dlg.destroy()
 
     def on_import_profiles(self, button):
-        dlg = Gtk.FileChooserDialog(title=LANGS[self.lang]["import"], parent=self, action=Gtk.FileChooserAction.OPEN)
-        dlg.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OPEN, Gtk.ResponseType.OK)
+        dlg = Gtk.FileChooserDialog(
+            title=LANGS[self.lang]["import"],
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN
+        )
+        dlg.add_buttons(
+            LANGS[self.lang]["cancel"], Gtk.ResponseType.CANCEL,
+            LANGS[self.lang]["ok"], Gtk.ResponseType.OK
+        )
         if dlg.run() == Gtk.ResponseType.OK:
             path = dlg.get_filename()
             try:
@@ -811,11 +1216,47 @@ class ConverterWindow(Gtk.Window):
         new_lang = combo.get_active_text()
         if new_lang == self.lang:
             return
+
+        old_output_dir = self.output_dir
+        old_max_threads = self.max_threads
+        old_trim_enabled = self.trim_enabled
+        old_input_file = self.entry_in.get_text()
+        old_output_file = self.entry_out.get_text()
+        old_combo_index = self.combo.get_active()
+
         self.lang = new_lang
         self.prefs["lang"] = self.lang
         save_prefs(self.prefs)
-        Gtk.main_quit()
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+
+        self.profiles = get_localized_profiles(self.lang)
+
+        for child in self.get_children():
+            self.remove(child)
+        self.create_widgets()
+
+        self.output_dir = old_output_dir
+        self.max_threads = old_max_threads
+        self.trim_enabled = old_trim_enabled
+        self.entry_in.set_text(old_input_file)
+        self.entry_out.set_text(old_output_file)
+        self.entry_out_dir.set_text(self.output_dir)
+        self.spin_threads.set_value(self.max_threads)
+        self.check_trim.set_active(self.trim_enabled)
+        self.entry_trim_start.set_sensitive(self.trim_enabled)
+        self.entry_trim_end.set_sensitive(self.trim_enabled)
+
+        self.update_profile_combo()
+        if old_combo_index < len(self.combo.get_model()):
+            self.combo.set_active(old_combo_index)
+
+        self.set_title(LANGS[self.lang]["title"])
+
+        for child in self.get_children():
+            self.resize_widgets(child)
+
+        self.resize(1, 1)
+        self.queue_resize()
+        self.show_all()
 
     def on_threads_changed(self, spin):
         new_threads = self.spin_threads.get_value_as_int()
@@ -836,7 +1277,11 @@ class ConverterWindow(Gtk.Window):
             self.append_log(LANGS[self.lang]["input_file_not_selected"], "error")
             return
         self._conversion_completed = False
-        threading.Thread(target=self.run_ffmpeg, args=(infile, outfile, prof, None), daemon=True).start()
+        threading.Thread(
+            target=self.run_ffmpeg,
+            args=(infile, outfile, prof, None),
+            daemon=True
+        ).start()
 
     def run_ffmpeg(self, infile, outfile, prof, queue_idx):
         try:
@@ -847,106 +1292,29 @@ class ConverterWindow(Gtk.Window):
             target_width = prof.get("width", 0)
             target_height = prof.get("height", 0)
 
-            if input_ext == container and input_width == target_width and input_height == target_height:
+            if (
+                input_ext == container
+                and input_width == target_width
+                and input_height == target_height
+            ):
                 self.append_log(
-                    LANGS[self.lang]["no_conversion_needed"].format(input_ext=input_ext, profile_name=container),
+                    LANGS[self.lang]["no_conversion_needed"].format(
+                        input_ext=input_ext,
+                        profile_name=container
+                    ),
                     "warning"
                 )
                 return
 
-            args = ["ffmpeg", "-y" if self.check_overwrite.get_active() else "-n", "-i", infile]
-
-            if self.trim_enabled:
-                trim_start = self.entry_trim_start.get_text().strip()
-                trim_end = self.entry_trim_end.get_text().strip()
-
-                def parse_time(time_str):
-                    if not time_str:
-                        return None
-                    if ':' in time_str:
-                        try:
-                            minutes, seconds = map(float, time_str.split(':'))
-                            return minutes * 60 + seconds
-                        except:
-                            return None
-                    else:
-                        try:
-                            return float(time_str)
-                        except:
-                            return None
-
-                start_seconds = parse_time(trim_start)
-                end_seconds = parse_time(trim_end)
-
-                if start_seconds is not None and start_seconds > 0:
-                    args += ["-ss", str(start_seconds)]
-                if end_seconds is not None and end_seconds > 0:
-                    args += ["-to", str(end_seconds)]
-
-            if prof.get("vcodec") and prof["vcodec"] != "copy":
-                args += ["-c:v", prof["vcodec"]]
-                if "video_bitrate" in prof:
-                    args += ["-b:v", prof["video_bitrate"]]
-                if "width" in prof and "height" in prof:
-                    if prof.get("container") == "mp4" and target_width == 720 and target_height == 1280:
-                        args += [
-                            "-vf",
-                            f"scale=-1:{prof['height']}:force_original_aspect_ratio=increase,crop={prof['width']}:{prof['height']}:ceil((in_w-out_w)/2):0"
-                        ]
-                    elif prof.get("container") == "mp4" and target_width == 1080 and target_height == 1080:
-                        args += [
-                            "-vf",
-                            "scale='if(gt(a,1),1080,-1)':'if(gt(a,1),-1,1080)',pad=1080:1080:(ow-iw)/2:(oh-ih)/2:color=black"
-                        ]
-                    else:
-                        args += [
-                            "-vf",
-                            f"scale={prof['width']}:{prof['height']}"
-                        ]
-                if prof.get("pix_fmt"):
-                    args += ["-pix_fmt", prof["pix_fmt"]]
-                if prof["vcodec"] == "libaom-av1":
-                    if "cpu_used" in prof:
-                        args += ["-cpu-used", prof["cpu_used"]]
-                    if "threads" in prof:
-                        args += ["-threads", prof["threads"]]
-                if prof["vcodec"] in ("libx264", "libx265", "h264_nvenc", "hevc_nvenc", "h264_qsv"):
-                    if "preset" in prof:
-                        args += ["-preset", prof["preset"]]
-                    if "profile" in prof:
-                        args += ["-profile:v", prof["profile"]]
-                    if "crf" in prof:
-                        args += ["-crf", str(prof["crf"])]
-                if prof["vcodec"].startswith("libvpx"):
-                    args += ["-crf", str(prof.get("crf", 30)), "-b:v", "0"]
-                if prof.get("fps"):
-                    args += ["-r", str(prof["fps"])]
-            else:
-                if prof.get("vcodec") is None:
-                    args += ["-vn"]
-                else:
-                    args += ["-c:v", "copy"]
-
-            if prof.get("acodec") and prof["acodec"] != "copy":
-                args += ["-c:a", prof["acodec"]]
-                if prof.get("audio_bitrate"):
-                    args += ["-b:a", prof["audio_bitrate"]]
-                if prof["acodec"] == "dca":
-                    args += ["-strict", "-2"]
-                if prof["acodec"] == "libopencore_amrnb":
-                    args += ["-ar", "8000", "-ac", "1"]
-            else:
-                args += ["-c:a", "copy"]
-
-            if prof.get("movflags"):
-                args += ["-movflags", prof["movflags"]]
+            args = build_ffmpeg_args(self, infile, prof)
 
             if container:
                 outpath = os.path.splitext(outfile)[0] + f".{container}"
             else:
                 outpath = outfile
             cmd = args + [outpath]
-            GLib.idle_add(self.append_log, LANGS[self.lang]["convert"] + ": " + " ".join(shlex.quote(p) for p in cmd))
+            cmd_str = " ".join(shlex.quote(p) for p in cmd)
+            self.append_log(LANGS[self.lang]["convert"] + ": " + cmd_str)
 
             self._ffmpeg_process = subprocess.Popen(
                 cmd,
@@ -954,50 +1322,46 @@ class ConverterWindow(Gtk.Window):
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                universal_newlines=True,
-                preexec_fn=os.setsid
+                universal_newlines=True
             )
 
             while True:
                 if self._stop:
                     self._ffmpeg_process.send_signal(signal.SIGSTOP)
-                    GLib.idle_add(self.append_log, LANGS[self.lang]["conversion_paused"])
+                    self.append_log(LANGS[self.lang]["conversion_paused"])
                     while self._stop:
                         time.sleep(0.1)
                     self._ffmpeg_process.send_signal(signal.SIGCONT)
-                    GLib.idle_add(self.append_log, LANGS[self.lang]["conversion_resumed"])
+                    self.append_log(LANGS[self.lang]["conversion_resumed"])
 
                 line = self._ffmpeg_process.stderr.readline()
                 if not line and self._ffmpeg_process.poll() is not None:
                     break
                 if line:
-                    if "time=" in line:
-                        try:
-                            time_str = line.split("time=")[1].split()[0]
-                            h, m, s = time_str.split(":")
-                            total_seconds = int(h) * 3600 + int(m) * 60 + float(s)
-                            if "Duration" in line:
-                                duration_str = line.split("Duration: ")[1].split(",")[0]
-                                h, m, s = duration_str.split(":")
-                                duration = int(h) * 3600 + int(m) * 60 + float(s)
-                                progress = total_seconds / duration
-                        except Exception as e:
-                            pass
-                    GLib.idle_add(self.append_log, line.rstrip())
+                    self.append_log(line.rstrip())
 
             self._ffmpeg_process.wait()
             if self._ffmpeg_process.returncode == 0 and not self._conversion_completed:
                 self._conversion_completed = True
-                GLib.idle_add(
-                    self.append_log,
-                    LANGS[self.lang]["conversion_complete"].format(filename=os.path.basename(outpath)),
+                self.append_log(
+                    LANGS[self.lang]["conversion_complete"].format(
+                        filename=os.path.basename(outpath)
+                    ),
                     "success"
                 )
-            elif self._ffmpeg_process.returncode != 0:
-                GLib.idle_add(self.append_log, LANGS[self.lang]["conversion_error"].format(error=self._ffmpeg_process.returncode), "error")
+            if self._ffmpeg_process.returncode != 0:
+                self.append_log(
+                    LANGS[self.lang]["conversion_error"].format(
+                        error=self._ffmpeg_process.returncode
+                    ),
+                    "error"
+                )
 
         except Exception as e:
-            GLib.idle_add(self.append_log, LANGS[self.lang]["conversion_error"].format(error=e), "error")
+            self.append_log(
+                LANGS[self.lang]["conversion_error"].format(error=e),
+                "error"
+            )
 
     def on_preview(self, button):
         infile = self.entry_in.get_text().strip()
@@ -1018,21 +1382,28 @@ class ConverterWindow(Gtk.Window):
 
     def try_vlc_preview(self, infile):
         try:
-            result = subprocess.run(["which", "vlc"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if result.returncode == 0:
-                self.append_log(LANGS[self.lang]["using_vlc"])
-                subprocess.Popen(["vlc", infile])
-                return True
-            else:
+            with subprocess.Popen(
+                ["which", "vlc"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            ) as process:
+                result = process.communicate()
+                if process.returncode == 0:
+                    self.append_log(LANGS[self.lang]["using_vlc"])
+                    subprocess.Popen(["vlc", infile])
+                    return True
                 self.append_log(LANGS[self.lang]["vlc_not_found"], "warning")
                 return False
         except Exception as e:
-            self.append_log(LANGS[self.lang]["conversion_error"].format(error=e), "error")
+            self.append_log(
+                LANGS[self.lang]["conversion_error"].format(error=e),
+                "error"
+            )
             return False
 
     def try_gstreamer_preview(self, infile):
         try:
-            if hasattr(self, 'playbin'):
+            if self.playbin:
                 self.playbin.set_state(Gst.State.NULL)
 
             self.playbin = Gst.ElementFactory.make("playbin", "player")
@@ -1050,17 +1421,26 @@ class ConverterWindow(Gtk.Window):
             self.append_log(LANGS[self.lang]["using_gstreamer"])
             return True
         except Exception as e:
-            self.append_log(LANGS[self.lang]["gstreamer_error"].format(error=e), "error")
+            self.append_log(
+                LANGS[self.lang]["gstreamer_error"].format(error=e),
+                "error"
+            )
             return False
 
     def on_gst_message(self, bus, message):
         if message.type == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             error_message = err.message
-            if "Output window was closed" not in error_message and "Internal data stream error" not in error_message:
-                self.append_log(LANGS[self.lang]["playback_error"].format(error=error_message), "error")
+            if (
+                "Output window was closed" not in error_message
+                and "Internal data stream error" not in error_message
+            ):
+                self.append_log(
+                    LANGS[self.lang]["playback_error"].format(error=error_message),
+                    "error"
+                )
             self.playbin.set_state(Gst.State.NULL)
-        elif message.type == Gst.MessageType.EOS:
+        if message.type == Gst.MessageType.EOS:
             self.append_log(LANGS[self.lang]["playback_finished"])
             self.playbin.set_state(Gst.State.NULL)
 
@@ -1082,23 +1462,30 @@ class ConverterWindow(Gtk.Window):
         else:
             self.append_log(LANGS[self.lang]["process_not_found"], "warning")
 
-    def on_drag_data_received_input(self, widget, drag_context, x, y, data, info, time):
+    def on_drag_data_received_input(self, widget, drag_context, x, y, data, info, time_val):
         uris = data.get_uris()
-        for u in uris:
-            path = GLib.filename_from_uri(u)[0]
+        for uri in uris:
+            path = GLib.filename_from_uri(uri)[0]
             if os.path.isfile(path):
                 self.entry_in.set_text(path)
                 self.update_output_path()
-        drag_context.finish(True, False, time)
+        drag_context.finish(True, False, time_val)
 
 class PresetDialog(Gtk.Dialog):
     def __init__(self, parent, profiles, lang):
-        super().__init__(title=LANGS[lang]["preset_mgr"], transient_for=parent, flags=0)
-        self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK)
+        super().__init__(
+            title=LANGS[lang]["preset_mgr"],
+            transient_for=parent,
+            flags=0
+        )
+        self.add_buttons(
+            LANGS[lang]["cancel"], Gtk.ResponseType.CANCEL,
+            LANGS[lang]["ok"], Gtk.ResponseType.OK
+        )
         self.set_default_size(600, 500)
         self.profiles = profiles
         if not self.profiles:
-            self.profiles = EXTENDED_PROFILES
+            self.profiles = get_localized_profiles(lang)
         self.lang = lang
 
         box = self.get_content_area()
@@ -1108,7 +1495,7 @@ class PresetDialog(Gtk.Dialog):
         self.liststore = Gtk.ListStore(str)
         self.treeview = Gtk.TreeView(model=self.liststore)
         renderer = Gtk.CellRendererText()
-        col_name = Gtk.TreeViewColumn("Название", renderer, text=0)
+        col_name = Gtk.TreeViewColumn(LANGS[self.lang]["name"], renderer, text=0)
         self.treeview.append_column(col_name)
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -1119,11 +1506,11 @@ class PresetDialog(Gtk.Dialog):
             self.liststore.append([name])
 
         button_box = Gtk.Box(spacing=6)
-        btn_add = Gtk.Button(label="Добавить")
+        btn_add = Gtk.Button(label=LANGS[self.lang]["add"])
         btn_add.connect("clicked", self.on_add_preset)
-        btn_edit = Gtk.Button(label="Редактировать")
+        btn_edit = Gtk.Button(label=LANGS[self.lang]["edit"])
         btn_edit.connect("clicked", self.on_edit_preset)
-        btn_remove = Gtk.Button(label="Удалить")
+        btn_remove = Gtk.Button(label=LANGS[self.lang]["remove"])
         btn_remove.connect("clicked", self.on_remove_preset)
 
         button_box.pack_start(btn_add, True, True, 0)
@@ -1134,13 +1521,20 @@ class PresetDialog(Gtk.Dialog):
         self.show_all()
 
     def on_add_preset(self, button):
-        dialog = Gtk.Dialog(title="Добавить параметры", transient_for=self, flags=0)
-        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK)
+        dialog = Gtk.Dialog(
+            title=LANGS[self.lang]["preset_mgr_add"],
+            transient_for=self,
+            flags=0
+        )
+        dialog.add_buttons(
+            LANGS[self.lang]["cancel"], Gtk.ResponseType.CANCEL,
+            LANGS[self.lang]["ok"], Gtk.ResponseType.OK
+        )
 
         box = dialog.get_content_area()
         grid = Gtk.Grid(column_spacing=6, row_spacing=6)
 
-        lbl_name = Gtk.Label(label="Название:")
+        lbl_name = Gtk.Label(label=f"{LANGS[self.lang]['name']}:")
         entry_name = Gtk.Entry()
 
         grid.attach(lbl_name, 0, 0, 1, 1)
@@ -1153,48 +1547,56 @@ class PresetDialog(Gtk.Dialog):
         if response == Gtk.ResponseType.OK:
             name = entry_name.get_text().strip()
             if name:
-                self.profiles[name] = EXTENDED_PROFILES.get(name, EXTENDED_PROFILES["MP4 720p (H.264)"])
+                self.profiles[name] = {
+                    "vcodec": "libx264", "acodec": "aac", "width": 1280, "height": 720,
+                    "video_bitrate": "2500k", "audio_bitrate": "128k", "container": "mp4", "crf": 23
+                }
                 self.liststore.append([name])
 
         dialog.destroy()
 
     def on_edit_preset(self, button):
         selection = self.treeview.get_selection()
-        model, iter = selection.get_selected()
-        if iter is None:
+        model, tree_iter = selection.get_selected()
+        if tree_iter is None:
             return
 
-        name = model.get_value(iter, 0)
+        name = model.get_value(tree_iter, 0)
         params = self.profiles[name]
 
-        dialog = Gtk.Dialog(title=f"Редактировать параметры: {name}", transient_for=self, flags=0)
-        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK)
+        dialog = Gtk.Dialog(
+            title=f"{LANGS[self.lang]['preset_mgr_edit']}: {name}",
+            transient_for=self,
+            flags=0
+        )
+        dialog.add_buttons(
+            LANGS[self.lang]["cancel"], Gtk.ResponseType.CANCEL,
+            LANGS[self.lang]["ok"], Gtk.ResponseType.OK
+        )
 
         box = dialog.get_content_area()
         grid = Gtk.Grid(column_spacing=6, row_spacing=6)
 
-        lbl_vcodec = Gtk.Label(label="Видеокодек:")
+        lbl_vcodec = Gtk.Label(label=f"{LANGS[self.lang]['video_codec']}:")
         entry_vcodec = Gtk.Entry(text=params.get("vcodec", ""))
-        lbl_acodec = Gtk.Label(label="Аудиокодек:")
+        lbl_acodec = Gtk.Label(label=f"{LANGS[self.lang]['audio_codec']}:")
         entry_acodec = Gtk.Entry(text=params.get("acodec", ""))
-        lbl_width = Gtk.Label(label="Ширина:")
+        lbl_width = Gtk.Label(label=f"{LANGS[self.lang]['width']}:")
         entry_width = Gtk.Entry(text=str(params.get("width", "")))
-        lbl_height = Gtk.Label(label="Высота:")
+        lbl_height = Gtk.Label(label=f"{LANGS[self.lang]['height']}:")
         entry_height = Gtk.Entry(text=str(params.get("height", "")))
-        lbl_video_bitrate = Gtk.Label(label="Видеобитрейт:")
+        lbl_video_bitrate = Gtk.Label(label=f"{LANGS[self.lang]['video_bitrate']}:")
         entry_video_bitrate = Gtk.Entry(text=params.get("video_bitrate", ""))
-        lbl_audio_bitrate = Gtk.Label(label="Аудиобитрейт:")
+        lbl_audio_bitrate = Gtk.Label(label=f"{LANGS[self.lang]['audio_bitrate']}:")
         entry_audio_bitrate = Gtk.Entry(text=params.get("audio_bitrate", ""))
-        lbl_pix_fmt = Gtk.Label(label="Формат пикселей:")
+        lbl_pix_fmt = Gtk.Label(label=f"{LANGS[self.lang]['pixel_format']}:")
         entry_pix_fmt = Gtk.Entry(text=params.get("pix_fmt", ""))
-        lbl_container = Gtk.Label(label="Контейнер:")
+        lbl_container = Gtk.Label(label=f"{LANGS[self.lang]['container']}:")
         entry_container = Gtk.Entry(text=params.get("container", ""))
-        lbl_crf = Gtk.Label(label="CRF (качество, 0-51):")
+        lbl_crf = Gtk.Label(label=f"{LANGS[self.lang]['crf_label']}:")
         entry_crf = Gtk.Entry(text=str(params.get("crf", 23)))
-        lbl_preset = Gtk.Label(label="Пресет:")
+        lbl_preset = Gtk.Label(label=f"{LANGS[self.lang]['preset']}:")
         entry_preset = Gtk.Entry(text=params.get("preset", "medium"))
-        lbl_profile = Gtk.Label(label="Профиль:")
-        entry_profile = Gtk.Entry(text=params.get("profile", ""))
 
         grid.attach(lbl_vcodec, 0, 0, 1, 1)
         grid.attach(entry_vcodec, 1, 0, 1, 1)
@@ -1216,8 +1618,6 @@ class PresetDialog(Gtk.Dialog):
         grid.attach(entry_crf, 1, 8, 1, 1)
         grid.attach(lbl_preset, 0, 9, 1, 1)
         grid.attach(entry_preset, 1, 9, 1, 1)
-        grid.attach(lbl_profile, 0, 10, 1, 1)
-        grid.attach(entry_profile, 1, 10, 1, 1)
 
         box.pack_start(grid, True, True, 0)
         dialog.show_all()
@@ -1234,26 +1634,25 @@ class PresetDialog(Gtk.Dialog):
             params["container"] = entry_container.get_text().strip()
             params["crf"] = int(entry_crf.get_text().strip()) if entry_crf.get_text().strip() else 23
             params["preset"] = entry_preset.get_text().strip()
-            params["profile"] = entry_profile.get_text().strip()
 
         dialog.destroy()
 
     def on_remove_preset(self, button):
         selection = self.treeview.get_selection()
-        model, iter = selection.get_selected()
-        if iter is not None:
-            name = model.get_value(iter, 0)
+        model, tree_iter = selection.get_selected()
+        if tree_iter is not None:
+            name = model.get_value(tree_iter, 0)
             del self.profiles[name]
-            model.remove(iter)
+            model.remove(tree_iter)
 
     def get_profiles(self):
         return self.profiles
 
 def main():
     ensure_convert_dir()
-    win = ConverterWindow()
-    win.connect("destroy", Gtk.main_quit)
-    win.show_all()
+    window = ConverterWindow()
+    window.connect("destroy", Gtk.main_quit)
+    window.show_all()
     Gtk.main()
 
 if __name__ == "__main__":
