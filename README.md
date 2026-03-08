@@ -86,7 +86,7 @@
 Код: python3 convert.py
 
 ### Скачать / Download
-[Скачать convert_1.0_amd64.deb / Download convert_1.0_amd64.deb](https://github.com/Rouruns/convert/releases/download/v1.0/convert_1.0_amd64.deb)
+[convert_1.0_amd64.deb](https://github.com/Rouruns/convert/releases/download/v1.0/convert_1.0_amd64.deb)
 ## Screenshots
 
 ### Русская версия
